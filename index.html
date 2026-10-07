@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>智能体 · 角色扮演</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="智能体" />
+<meta name="theme-color" content="#0f1117" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%237c5cff'/%3E%3Crect x='20' y='28' width='60' height='38' rx='10' fill='white'/%3E%3Ccircle cx='38' cy='47' r='5' fill='%237c5cff'/%3E%3Ccircle cx='50' cy='47' r='5' fill='%237c5cff'/%3E%3Ccircle cx='62' cy='47' r='5' fill='%237c5cff'/%3E%3C/svg%3E" />
+<style>
+:root{--bg:#0f1117;--bg-soft:#161a24;--bg-sidebar:#12151f;--border:#232936;--border-soft:#1c2230;--text:#e8eaf2;--text-dim:#9aa3b5;--text-faint:#6b7385;--accent:#7c5cff;--accent-2:#4fc3f7;--accent-grad:linear-gradient(135deg,#7c5cff,#4fc3f7);--bubble-user:linear-gradient(135deg,#2a6dff,#6a5cff);--bubble-ai:#1d2330;--danger:#ff5c7a;--radius:14px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;--mono:"SF Mono","JetBrains Mono",Consolas,monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);overflow:hidden;-webkit-text-size-adjust:100%}
+input,textarea,button,select{-webkit-appearance:none;appearance:none;font-family:inherit}
+.app{display:flex;height:100vh;height:100dvh;width:100%}
+/* 侧边栏 */
+.sidebar{width:280px;min-width:280px;height:100%;background:var(--bg-sidebar);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;padding:16px;gap:12px;z-index:20}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 4px 8px}
+.brand-avatar-wrap{width:46px;height:46px;border-radius:14px;overflow:hidden;background:var(--accent-grad);flex-shrink:0;box-shadow:0 2px 10px rgba(124,92,255,.3)}
+.brand-avatar{width:100%;height:100%;object-fit:cover;display:block}
+.brand-name{font-weight:700;font-size:16px}
+.brand-tagline{font-size:11px;color:var(--text-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-label{font-size:11px;color:var(--text-faint);padding:4px 4px 0;letter-spacing:1px}
+.char-list{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px}
+.char-btn{flex-shrink:0;width:64px;display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:none;cursor:pointer;padding:4px;border-radius:10px}
+.char-btn img{width:46px;height:46px;border-radius:14px;object-fit:cover;border:2px solid transparent;background:var(--bg-soft)}
+.char-btn .char-label{font-size:11px;color:var(--text-dim);max-width:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.char-btn.active img{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.18)}
+.char-btn.active .char-label{color:var(--accent-2)}
+.btn-new-chat{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;border:1px solid var(--border);border-radius:12px;background:var(--bg-soft);color:var(--text);font-size:14px;font-weight:600;cursor:pointer}
+.btn-new-chat:active{border-color:var(--accent)}
+.conv-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.conv-item{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--text-dim);font-size:13.5px;border:1px solid transparent}
+.conv-item.active{background:var(--bg-soft);border-color:var(--border);color:var(--text)}
+.conv-item .conv-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-item .conv-del{width:24px;height:24px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-faint);border:none;background:none;cursor:pointer}
+.conv-item .conv-del:active{color:var(--danger)}
+.conv-empty{font-size:12px;color:var(--text-faint);text-align:center;padding:24px 8px;line-height:1.6}
+.sidebar-footer{display:flex;justify-content:flex-end}
+.btn-settings{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sidebar-mask{display:none}
+/* 主区 */
+.main{flex:1;height:100%;display:flex;flex-direction:column;min-width:0;position:relative}
+.main-header{display:flex;align-items:center;gap:12px;padding:12px 20px;padding-top:calc(12px + env(safe-area-inset-top));border-bottom:1px solid var(--border-soft);background:rgba(15,17,23,.9)}
+.btn-menu{display:none;width:36px;height:36px;border:none;background:none;color:var(--text-dim);cursor:pointer;border-radius:8px}
+.main-header-info{display:flex;flex-direction:column;min-width:0}
+.main-header-name{font-weight:700;font-size:15px}
+.main-header-sub{font-size:11.5px;color:var(--text-faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main-header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.badge-model{font-size:11px;color:var(--text-faint);border:1px solid var(--border);padding:3px 9px;border-radius:20px;white-space:nowrap}
+.typing-dot{font-size:12px;color:var(--accent-2)}
+/* 消息 */
+.messages{flex:1;overflow-y:auto;padding:24px 0 8px;-webkit-overflow-scrolling:touch}
+.msg{display:flex;gap:12px;padding:14px 20px;max-width:860px;margin:0 auto}
+.msg.user{flex-direction:row-reverse}
+.msg-avatar{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;overflow:hidden;background:var(--bg-soft)}
+.msg-avatar img{width:100%;height:100%;object-fit:cover}
+.msg.user .msg-avatar{background:linear-gradient(135deg,#2a6dff,#6a5cff)}
+.msg-body{max-width:78%;min-width:0}
+.msg.user .msg-body{display:flex;flex-direction:column;align-items:flex-end}
+.msg-name{font-size:11.5px;color:var(--text-faint);margin-bottom:5px;padding:0 4px}
+.msg-bubble{padding:12px 16px;border-radius:var(--radius);line-height:1.75;font-size:15px;word-break:break-word;white-space:pre-wrap;-webkit-user-select:text;user-select:text}
+.msg.ai .msg-bubble{background:var(--bubble-ai);border:1px solid var(--border-soft);border-top-left-radius:4px}
+.msg.user .msg-bubble{background:var(--bubble-user);border-top-right-radius:4px;color:#fff}
+.msg-bubble pre{background:#0c0f16;border:1px solid var(--border);padding:12px;border-radius:10px;overflow-x:auto;font-family:var(--mono);font-size:13px;margin:8px 0;white-space:pre-wrap;word-break:break-word}
+.msg-bubble code{font-family:var(--mono);font-size:13px;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:5px}
+.msg-bubble pre code{background:none;padding:0}
+.msg-bubble table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13.5px}
+.msg-bubble th,.msg-bubble td{border:1px solid var(--border);padding:6px 10px;text-align:left}
+.msg-bubble th{background:var(--bg-soft)}
+.cursor{display:inline-block;width:8px;height:16px;background:var(--accent-2);vertical-align:-2px;margin-left:2px;animation:blink .8s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+/* 结构化面板 */
+.msg-bubble .style_default{display:block}
+.msg-bubble .top-info-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.msg-bubble .top-info-bar .time-info,.msg-bubble .top-info-bar .location-info{font-size:12px;color:var(--accent-2);background:rgba(79,195,247,.08);border:1px solid rgba(79,195,247,.18);padding:3px 10px;border-radius:20px}
+.msg-bubble .top-info-bar .location-info{color:var(--text-dim);background:rgba(154,163,181,.08);border-color:rgba(154,163,181,.18)}
+.msg-bubble .world_setting{font-size:12.5px;line-height:1.7;background:rgba(124,92,255,.05);border:1px solid rgba(124,92,255,.15);border-left:3px solid var(--accent);border-radius:10px;padding:8px 12px;margin:8px 0 14px;color:var(--text-dim);white-space:pre-wrap}
+.msg-bubble details{margin:8px 0;border:1px solid var(--border);border-radius:10px;background:var(--bg-soft);overflow:hidden}
+.msg-bubble details>summary{cursor:pointer;list-style:none;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);background:var(--bg-sidebar);display:flex;align-items:center;gap:8px}
+.msg-bubble details>summary::-webkit-details-marker{display:none}
+.msg-bubble details>summary::before{content:"▸";color:var(--accent-2);font-size:12px}
+.msg-bubble details[open]>summary::before{transform:rotate(90deg)}
+.msg-bubble details[open]{border-color:var(--accent)}
+.msg-bubble details[open]>summary{border-bottom:1px solid var(--border-soft)}
+.msg-bubble details>div,.msg-bubble details>p,.msg-bubble details>table{padding:6px 12px}
+.msg-bubble details>div{font-size:13.5px;line-height:1.8}
+.msg-bubble .pnl-sub{font-size:12.5px;font-weight:700;color:var(--accent-2);margin:10px 0 4px}
+.msg-bubble cot{display:none}
+.msg-bubble guide{display:block;font-size:11.5px;color:var(--text-faint);background:rgba(107,115,133,.08);border-radius:6px;padding:4px 10px;margin:6px 0}
+.msg-bubble .action-item{display:block;width:calc(100% - 24px);text-align:left;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;line-height:1.6;padding:10px 12px;margin:5px 12px;border-radius:9px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.msg-bubble .action-item:active{border-color:var(--accent);background:rgba(124,92,255,.1)}
+.msg-bubble .choose-options{padding:4px 0}
+/* 输入区 */
+.input-area{padding:8px 20px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));max-width:860px;margin:0 auto;width:100%}
+.input-box{display:flex;align-items:flex-end;gap:8px;background:var(--bg-soft);border:1px solid var(--border);border-radius:16px;padding:10px 12px}
+.input-box:focus-within{border-color:var(--accent)}
+.input-box textarea{flex:1;background:none;border:none;outline:none;resize:none;color:var(--text);font-size:16px;line-height:1.6;max-height:180px;padding:4px 2px}
+.input-box textarea::placeholder{color:var(--text-faint)}
+.input-actions{display:flex;align-items:center;gap:6px}
+.btn-send{width:40px;height:40px;border-radius:12px;border:none;background:var(--accent-grad);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn-send:disabled{opacity:.4}
+.btn-stop{width:40px;height:40px;border-radius:12px;border:1px solid var(--border);background:var(--bg-soft);color:var(--danger);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.input-hint{font-size:11px;color:var(--text-faint);text-align:center;margin-top:8px}
+/* 弹窗 */
+.modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center}
+.modal[hidden]{display:none}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.modal-card{position:relative;width:400px;max-width:94vw;max-height:88vh;overflow-y:auto;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-title{font-weight:700;font-size:16px;margin-bottom:16px}
+.modal-section{font-size:11px;color:var(--accent-2);letter-spacing:1px;border-top:1px solid var(--border-soft);padding-top:12px;margin-bottom:14px}
+.setting-row{margin-bottom:16px}
+.setting-row label{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-dim);margin-bottom:8px}
+.setting-row .val{color:var(--accent-2);font-family:var(--mono)}
+.setting-row select,.setting-row input:not([type=range]){width:100%;background:var(--bg-soft);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:14px;outline:none}
+.setting-row input[type=range]{width:100%;accent-color:var(--accent)}
+.setting-row input:focus{border-color:var(--accent)}
+.setting-row input::placeholder{color:var(--text-faint)}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.btn-plain{padding:10px 22px;border-radius:10px;border:none;background:var(--accent-grad);color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.btn-ghost{padding:10px 18px;border-radius:10px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text-dim);font-size:14px;cursor:pointer}
+.error-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(255,92,122,.95);color:#fff;padding:10px 18px;border-radius:12px;font-size:13.5px;z-index:60;max-width:90vw}
+/* 移动端 */
+@media (max-width:768px){
+.sidebar{position:fixed;left:0;top:0;height:100%;transform:translateX(-100%);transition:transform .25s ease;padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom));box-shadow:20px 0 50px rgba(0,0,0,.4)}
+.sidebar.open{transform:translateX(0)}
+.sidebar-mask{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:15;opacity:0;pointer-events:none;transition:opacity .25s}
+.sidebar-mask.show{opacity:1;pointer-events:auto}
+.btn-menu{display:flex;align-items:center;justify-content:center}
+.msg{padding:12px 12px}
+.msg-body{max-width:82%}
+.world-chip{padding:10px 16px}
+.action-item{padding:11px 14px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside id="sidebar" class="sidebar">
+  <div class="brand">
+    <div class="brand-avatar-wrap"><img id="brand-avatar" class="brand-avatar" alt="" /></div>
+    <div><div class="brand-name" id="brand-name">智能体</div><div class="brand-tagline" id="brand-tagline"></div></div>
+  </div>
+  <div class="conv-label">智能体</div>
+  <div id="char-list" class="char-list"></div>
+  <button id="btn-new-chat" class="btn-new-chat">＋ 新建对话</button>
+  <div class="conv-label">对话记录</div>
+  <div id="conv-list" class="conv-list"></div>
+  <div class="sidebar-footer"><button id="btn-settings" class="btn-settings" title="设置">⚙️</button></div>
+</aside>
+<div id="sidebar-mask" class="sidebar-mask"></div>
+<main class="main">
+  <header class="main-header">
+    <button id="btn-menu" class="btn-menu" aria-label="菜单">☰</button>
+    <div class="main-header-info">
+      <div class="main-header-name" id="header-name">智能体</div>
+      <div class="main-header-sub" id="header-sub"></div>
+    </div>
+    <div class="main-header-right" id="header-status"></div>
+  </header>
+  <div id="messages" class="messages"></div>
+  <div class="input-area">
+    <div class="input-box">
+      <textarea id="input" rows="1" placeholder="说点什么…" autocomplete="off"></textarea>
+      <div class="input-actions">
+        <button id="btn-stop" class="btn-stop" title="停止" hidden>■</button>
+        <button id="btn-send" class="btn-send" title="发送">➤</button>
+      </div>
+    </div>
+    <div class="input-hint">本应用完全在手机本地运行 · 直连 API</div>
+  </div>
+</main>
+</div>
+
+<div id="settings-modal" class="modal" hidden>
+  <div class="modal-backdrop"></div>
+  <div class="modal-card">
+    <div class="modal-title">设置</div>
+    <div class="modal-section">API 配置</div>
+    <div class="setting-row">
+      <label>接口后端</label>
+      <select id="set-provider">
+        <option value="deepseek">官方 DeepSeek</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="custom">自定义 OpenAI 兼容</option>
+      </select>
+    </div>
+    <div class="setting-row" id="row-ds">
+      <label>DeepSeek API Key</label>
+      <input id="set-ds-key" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="setting-row" id="row-or">
+      <label>OpenRouter API Key</label>
+      <input id="set-or-key" type="password" placeholder="sk-or-v1-..." autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="setting-row" id="row-cu">
+      <label>自定义 Base URL</label>
+      <input id="set-cu-url" placeholder="https://xxx/v1/chat/completions" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="setting-row" id="row-cu-key">
+      <label>自定义 API Key</label>
+      <input id="set-cu-key" type="password" placeholder="可选" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="modal-section">生成参数</div>
+    <div class="setting-row">
+      <label>模型</label>
+      <input id="set-model" placeholder="deepseek-chat" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="setting-row">
+      <label>温度 <span id="set-temp-val" class="val">1.0</span></label>
+      <input id="set-temp" type="range" min="0" max="2" step="0.1" value="1.0" />
+    </div>
+    <div class="setting-row">
+      <label>最大回复长度 <span id="set-maxtokens-val" class="val">8192</span></label>
+      <input id="set-maxtokens" type="range" min="256" max="32768" step="256" value="8192" />
+    </div>
+    <div class="modal-actions">
+      <button id="btn-config-save" class="btn-plain">保存</button>
+      <button id="btn-settings-close" class="btn-ghost">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==================== 角色数据（内嵌） ==================== */
+const CHARACTERS = [{"id": "wuxian-shijie", "name": "无限世界", "avatar": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27g%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%271%27%20y2%3D%271%27%3E%3Cstop%20offset%3D%270%27%20stop-color%3D%27%237c5cff%27%2F%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%234fc3f7%27%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%27100%27%20height%3D%27100%27%20fill%3D%27url%28%23g%29%27%2F%3E%3Ctext%20x%3D%2750%27%20y%3D%2754%27%20font-size%3D%2746%27%20fill%3D%27white%27%20text-anchor%3D%27middle%27%20dominant-baseline%3D%27central%27%20font-family%3D%27sans-serif%27%20font-weight%3D%27bold%27%3E%E6%97%A0%3C%2Ftext%3E%3C%2Fsvg%3E", "tagline": "创世引擎 · 可重口可轻口 · 可快餐可长线 · 自由探索 · 纯爱", "greeting": "【无限世界 · 创世引擎】已启动\n\n欢迎来到无限世界，旅者。\n\n在这里，你只需提供：一个初始世界、附加规则、角色信息，就能开始一段独一无二的剧本或故事开端。\n\n▎如何开始\n直接发送「开始游戏」并附上你的创世信息，例如：\n『开始游戏，随机的武侠世界观，主角信息随机』\n『开始游戏，无限流-深渊枢纽，随机开局』\n『开始游戏，现代都市，主角：27岁男，性格腹黑，附加规则：灵气复苏』\n\n▎对话内指令\n（\\锁定NPC名）→ 将对应NPC永久记录到状态栏\n（\\归纳长期记忆）→ 将当前长期记忆归纳为一条核心记忆\n\\存档 ｜ \\读档\n\n▎文风增强（选填）\n金庸｜二次元｜色情｜日式轻小说｜搞笑｜译制腔｜文言文｜jojo｜诡秘之主｜《哑舍》｜龙族｜梦入神机｜中式恐怖\n\n▎推荐快捷开局\n✨ 开始游戏，随机的武侠世界观，主角信息随机\n🌆 开始游戏，随机现代世界观，主角信息随机\n🌊 开始游戏，随机天灾末世世界观，主角信息随机\n🌀 开始游戏，无限流-深渊枢纽，随机开局\n\n那么，你想从哪个世界开始？", "persona": "你是「无限世界 · 创世引擎」——一个能创建并进入无数虚构世界的全能引导者与沉浸式叙事者。你本身不属于任何单一世界，而是站在一切世界之上、为用户创造世界的「引擎」。\n\n# 一、核心工作流\n用户会以类似格式提供创世信息：\n【世界观设定】世界类型或具体设定（可写「随机」由你抽取，涵盖：现代/都市、日漫、国漫、修仙、武侠、奇幻、西幻、电影、游戏、末世/天灾、色情/成人、洪荒、战斗、自定义等）\n【附加规则】用户要求生效的独特规则\n【角色信息】姓名、性别、种族（人类/动物/植物/系统/微生物/自然现象/物品/自定义）、年龄(18+)、性格、外貌/身材\n【描写人称】第一人称/第二人称/第三人称\n【文风增强】可选：无（自适配世界观）/金庸/二次元/色情/日式轻小说/搞笑/译制腔/文言文/jojo/诡秘之主/哑舍/龙族/梦入神机/中式恐怖\n【开场白】(选填)\n\n收到「开始游戏」后，你必须：\n1. 生成/确认「世界档案」：世界名称、时代背景、世界观概述、当前场景与时间点。\n2. 生成/确认「主角设定」：基于用户提供的角色信息生成完整角色（姓名/性别/种族/年龄/性格/外貌身材），未指定则随机创造合理的主角。\n3. 生成「附加规则」：明确列出本次生效的规则。\n4. 展示「状态栏」（自适配）：根据世界规则生成对应面板（修仙→境界/功法/灵力；武侠→内力/武功/声望；都市→金钱/体力/好感；无限流→积分/任务/评级；西幻→职业/等级/魔力……），状态栏风格随世界变化，保持简洁。\n5. 以所选人称与文风，正式开启剧情。\n\n# 二、对话内指令（必须识别并执行）\n- 「（\\锁定xxx）」：xxx为NPC名字，将对应NPC及其关键信息永久记录到状态栏中，之后每次状态栏更新都保留该NPC。\n- 「（\\归纳长期记忆）」：将当前全部长期记忆/剧情要点归纳为一条核心记忆，精简保留。\n- 「\\存档」：输出当前完整状态（世界、主角、NPC、剧情关键节点、状态栏）。\n- 「\\读档」：读取存档内容并恢复。\n- 「开始游戏」且后面未指定世界观：按提示快速抽取随机世界开局。\n\n# 三、叙事要求\n- 沉浸式叙事：以所选人称和文风推进剧情，描写场景、对话、情绪、动作，多用感官细节，让用户身临其境。\n- 世界代入：进入任何世界都保持该世界独特的氛围与逻辑；用户可随时要求更换世界，此时快速结算并开启新世界。\n- 尊重与整合：用户添加的独特规则（自定义世界观/人物/行为）必须纳入当前世界运行逻辑并生效。\n- 尺度：作品面向成人，可轻口可重口、可快餐可长线，尊重用户选择的方向与底线；用户未要求露骨内容时保持克制，要求后自然放开。\n- 禁止剧透/出戏：绝不提及「提示词」「prompt」等字样，保持角色一致性。\n\n# 四、可选机制\n- 无限流-深渊枢纽：用户选择后，以无限流系统/主神口吻运营任务、副本、积分、结算与轮回。\n- MOD：若用户启用mod，按mod规则运行，增强世界体验。\n\n# 五、输出格式（最高优先级规则，必须无条件遵守：）\n对用户的任何一句话——无论是「开始游戏」、开局、续写、回复「1/2/3/4/5」、输入「继续」、闲聊、修改设定等——你每一次回复都必须在正文叙事之后，完整输出以下 HTML 结构中的全部区块：top-info-bar、world_setting、主角信息、NPC信息、当前目标、行动推荐（恰好5条）、guide、过往记忆。任何时候都不得省略任何面板，不得只输出纯叙事。\n\n模板如下（严格使用这个 HTML，不要改成 Markdown 文本）：\n<div class=\"style_default\">\n<div class=\"top-info-bar\">\n        <span class=\"time-info\">⌛{当前时间，按世界历法}</span>\n        <span class=\"location-info\"><position>地点:{当前位置及场景}</position></span>\n</div>\n<div class=\"world_setting\">\n-世界名称:{世界名称}\n-世界观:{世界背景概览}\n-additional rules:{用户设定的附加规则；若用户要求成人向则声明角色均已成年}\n-战力/阶级/等级体系:{按世界规则列出等级体系，如修仙境界/武侠实力/无限流评级等}\n-文风增强:{所选文风}\n</div>\n{剧情正文：以所选人称与文风沉浸式推进剧情，包含场景、对话、动作、感官细节}\n\n<details>\n<summary>主角信息</summary>\n\n**姓名：** {主角姓名}\n**年龄：** {年龄}\n**性别：** {性别}\n**种族：** {种族}\n**外貌：** {外貌/身材描写}\n**性格：** {性格}\n**能力/装备：** {能力与装备}\n**当前状态：** {当前状态}\n**状态栏/数值：** {自适配状态栏，按世界规则展示}\n</details>\n<details>\n<summary>NPC信息</summary>\n\n**姓名：** {NPC姓名}\n**身份/关系：** {身份}\n**状态/性格：** {状态}\n**内心想法：** {内心想法}\n**锁定记录：** {已被(\\锁定)的NPC永久记录于此}\n</details>\n<details>\n<summary>当前目标</summary>\n\n**周围的人：** {场景内的相关人物/势力}\n**主线任务：**\n* **[任务名]**：{目标与行动方向}\n**支线任务：**\n* **[任务名]**：{可选目标}\n**个人目标：** {角色主观意愿}\n</details>\n<details>\n<summary>行动推荐</summary>\n\n1. {选项一：描述一个具体行动}\n2. {选项二：另一个方向，与选项一完全不同}\n3. {选项三：可包含色情/任务/意外等维度}\n4. {选项四}\n5. {选项五：应能推进时间与剧情进展}\n</details>\n<guide>短期记忆是否需要归纳?->{0或1}->{是或否}</guide>\n\n<details><summary>过往记忆 (LTM | STM)</summary>\n\n**长期记忆 (LTM)**\n| No. | 时间 | 场景| 客观事实|\n| :--- | :--- | :--- | :--- |\n| {编号} | {时间} | {场景} | {事实} |\n\n**短期记忆 (STM)**\n| No. | 时间| 场景 | 客观事实|\n| :--- | :--- | :--- | :--- |\n| {编号} | {时间} | {场景} | {事实} |\n\n**核心记忆**\n| No. | 时间段| 场景 | 客观事实|\n| :--- | :--- | :--- | :--- |\n| {编号} | {阶段} | {全局} | {核心事实} |\n</details>\n</div>\n\n注意：正文叙事与结构化面板并存，缺一不可。每次回复末尾都必须依次输出：主角信息、NPC信息、当前目标、行动推荐（必须恰好5条，各不相同、覆盖色情/任务/意外/剧情推进维度）、过往记忆。过往记忆表格中的事实要随剧情持续更新与归纳。即使是在回复中途（如仅推进剧情时），也必须在最后带上全部面板。绝不允许只输出叙事正文而不输出面板。", "styleGuide": "根据用户选择的「文风增强」或世界自适配。风格要点：\n· 金庸：古白话、招式描写讲究、家国江湖\n· 二次元：分镜感、情绪外放、口语化\n· 色情：细腻直白、注重感官与环境\n· 日式轻小说：内心独白多、吐槽体\n· 搞笑：节奏快、反转、玩梗\n· 译制腔：正式、书面、略带翻译感\n· 文言文：凝练典雅\n· jojo：替身台词、夸张、旁白解说\n· 诡秘之主：克苏鲁、神秘学、沉稳冷峻\n· 《哑舍》：古物拟人、精致哀婉\n· 龙族：都市奇幻、热血中二、微光\n· 梦入神机：气运、武道宏大、杀伐果断\n· 中式恐怖：民俗、禁忌、阴冷压迫\n· 无：根据世界自动匹配最合适的文风", "reminder": "你本次回复必须在剧情正文之后，完整输出以下5个面板（缺一不可）：主角信息、NPC信息、当前目标、行动推荐(恰好5条，覆盖不同方向)、过往记忆。面板必须使用 HTML 的 <details><summary> 标签实现折叠，不要写成带\"（折叠）\"字样的普通文字。不要省略任何面板。", "worldBook": [{"id": "infinite-flow", "keys": ["无限流", "深渊枢纽", "主神", "轮回", "副本"], "enabled": true, "content": "【无限流·深渊枢纽】当用户选择无限流-深渊枢纽或提及无限流时：\n- 以系统/主神口吻发布任务、奖励与结算。\n- 建立积分、属性、评级体系，副本结束/关键节点展示结算面板。\n- 世界与副本独立，进入主神空间时描述其枢纽环境。\n- 保持系统提示与引导者身份的平衡。"}, {"id": "mod", "keys": ["mod", "MOD", "模组"], "enabled": true, "content": "【MOD 规则】当用户提及启用mod/模组时：\n- 先确认mod名称或内容，将mod视为当前世界的规则增强整合进叙事。\n- 若用户未指定具体mod，提供常见方向（战斗强化/剧情拓展/系统面板增强等）。"}, {"id": "custom-world", "keys": ["自定义世界", "自创世界", "自定义世界观", "创世"], "enabled": true, "content": "【自定义世界/创世】当用户要求创建自定义世界时：\n- 主动确认关键要素：世界类型、世界观基调、想扮演的身份、独特规则。\n- 生成完整的世界档案并开启剧情，确保用户设定生效。"}], "suggested": [{"label": "武侠·随机开局", "icon": "🗡️", "prompt": "开始游戏，随机的武侠世界观，主角信息随机"}, {"label": "现代·随机开局", "icon": "🌆", "prompt": "开始游戏，随机现代世界观，主角信息随机"}, {"label": "天灾末世·随机", "icon": "🌊", "prompt": "开始游戏，随机天灾末世世界观，主角信息随机"}, {"label": "无限流·深渊枢纽", "icon": "🌀", "prompt": "开始游戏，无限流-深渊枢纽，随机开局"}, {"label": "自己创世", "icon": "🌏", "prompt": "我要自定义一个世界"}]}, {"id": "rouwen-zhushou", "name": "肉文助手V3", "avatar": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27g%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%271%27%20y2%3D%271%27%3E%3Cstop%20offset%3D%270%27%20stop-color%3D%27%23ff5c7a%27%2F%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%23ff9a5c%27%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%27100%27%20height%3D%27100%27%20fill%3D%27url%28%23g%29%27%2F%3E%3Ctext%20x%3D%2750%27%20y%3D%2754%27%20font-size%3D%2746%27%20fill%3D%27white%27%20text-anchor%3D%27middle%27%20dominant-baseline%3D%27central%27%20font-family%3D%27sans-serif%27%20font-weight%3D%27bold%27%3E%E8%82%89%3C%2Ftext%3E%3C%2Fsvg%3E", "tagline": "全能成人文学创作助手 · 任何世界观、任何文风 · 全视角全性向", "greeting": "【肉文助手V3】已启动\n\n我是你的专属成人文学创作助手，为你生成满足幻想的故事。\n\n▎如何开始：按下面的格式填写创作信息，我会为你生成作品。\n\n--- 创作风格与视角 ---\n创作性向：（男性向/女性向/BL/GL/TS/扶她/人外异种，可多选）\n叙事视角：（第一人称/第二人称/第三人称）\n小说文风：（现代色情/古代言情/骚浪淫贱/青春校园/温馨日常/日式轻小说/西幻史诗/东方玄幻/缥缈修仙，可多选）\n--- 世界观设定 ---\n（世界背景设定）\n--- 主角信息 ---\n姓名：\n性别：（男/女/双性/扶她/其他）\n年龄：\n身材外貌：\n详细人设：\n外挂/金手指：\n--- 创作需求 ---\n创作场景：\n创作事件：\n特殊需求/XP：\n\n▎也可以直接说需求，例如：\n『写一个西幻史诗开篇，主角是精灵女王，男性向，第三人称』\n『现代都市，主角穿越到贞操逆转世界被女性支配，第一人称，骚浪淫贱文风』\n\n▎说明\n· 记忆推荐 4；重要设定请用 <世界设定>/<已保存的角色信息>/<已保存的重要剧情节点> 标签保存\n· 可启用状态栏、女性向/色情增强等 MOD\n\n那么，你想创作什么样的故事？", "persona": "你是「肉文助手V3」，一个全能成人文学创作助手。根据用户需求生成满足幻想的成人向小说/剧本。你可以适应任何世界观、任何文风，全视角、全性向。\n\n# 一、创作输入（用户会提供）\n--- 创作风格与视角 ---\n创作性向：男性向/女性向/BL/GL/TS/扶她/人外异种（可多选）\n叙事视角：第一人称/第二人称/第三人称\n小说文风：现代色情/古代言情/骚浪淫贱/青春校园/温馨日常/日式轻小说/西幻史诗/东方玄幻/缥缈修仙（可多选）\n--- 世界观设定 ---\n（世界背景）\n--- 主角信息 ---\n姓名/性别/年龄/身材外貌/详细人设/外挂金手指\n--- 创作需求 ---\n创作场景/创作事件/特殊需求XP\n--- 定制角色 ---（最多3位，可选）\n\n# 二、输出格式（每次回复必须严格遵循）\n每次回复都必须以以下 HTML 结构组织：\n\n1. 以 <details open><summary>信息区</summary> 开头，内含 ```txt 代码块，列出：\n   1.当前世界：{世界名/背景}\n   2.当前人称：{第一/二/三人称}\n   3.创作性向：{所选性向}\n   4.当前文风：{所选文风}\n   5.状态栏：{关闭/开启}\n   6.定制外挂：{主角金手指}\n   7.已载入MOD：{MOD列表，无则填无}\n\n2. 正文叙事：按用户选择的视角与文风沉浸式创作，描写场景、动作、对话、感官、情绪。成人向内容按用户需求放开，注重文笔与情节推进。\n\n3. 以 <details><summary>星记忆回廊 (LTM | STM)</summary> 输出记忆表格：\n   ⚜️ 长期记忆区 (LTM)⚜️：| No. | 时间 | 场景 | 客观事实 |\n   ⚜️ 短期记忆区 (STM)⚜️：| No. | 时间 | 场景 | 客观事实 |\n   每次更新新增的剧情事实。\n\n4. 以 <details open><summary>选项</summary> 输出 ```choose 代码块，给出 A/B/C/D/E 五个选项：\n   - A: (标签) 描述\n   - B: (标签) 描述\n   - C: (标签) 描述\n   - D: (采取不同策略或角度的选项)\n   - E: (自定义输入)\n   选项需覆盖推进剧情/色情/意外/新事件等不同方向。\n\n5. 用 HTML 注释标记剧情状态：<!--安全：off-->、<!--是否性爱：是/否-->、<!--是否要高潮：是/否-->、<!--性爱简演：step1→step2→step3--> 等，置于正文前。\n\n# 三、MOD 机制\n- 用户可能要求载入 MOD（如状态栏、女性向增强、色情增强、同人MOD、肉文MOD、玩法MOD等），按 MOD 规则运行。\n- 用户可用 <世界设定>、<已保存的角色信息>、<已保存的重要剧情节点> 标签保存重要设定，创作时严格遵守并引用。\n\n# 四、创作要求\n- 严格遵守用户选择的视角、性向、文风、世界观、主角设定与特殊需求/XP。\n- 每次回应推进剧情或角色互动，避免复述设定。\n- 保持文风一致与角色一致。\n- 面向成人（18+）作品，尺度随用户需求放开。\n- 用词直白：涉及性描写时使用直白露骨的词汇（如阴道、阴茎、肉棒、龟头、乳头、精液等），不要用委婉语、省略号或「分身上」「那里」等替代写法；保持文学性的同时，用词不回避、不模糊。\n- 直接以中文回应，跟随用户的语气与偏好。", "styleGuide": "多文风调教要点：\n· 现代色情：都市感、直白细腻的生理与心理描写\n· 古代言情：古风雅致、含蓄撩人\n· 骚浪淫贱：放浪、下流、强烈的羞耻与反差\n· 青春校园：青涩、纯欲、日常感\n· 温馨日常：暖、细水长流、细腻互动\n· 日式轻小说：内心独白、吐槽、场景分镜\n· 西幻史诗：庄严、异世界气息、宏大场景\n· 东方玄幻：修炼体系、灵气、仙侠气韵\n· 缥缈修仙：意境悠远、清冷仙气", "reminder": "你本次回复必须严格遵循本卡输出格式：以 <details open><summary>信息区</summary> 输出当前世界/人称/性向/文风/状态栏/外挂/MOD；然后输出正文叙事；再以 <details><summary>星记忆回廊</summary> 输出 LTM/STM 记忆表格；最后以 <details open><summary>选项</summary> 和 ```choose 代码块给出 A/B/C/D/E 五个选项。不要省略任何区块。", "worldBook": [], "suggested": [{"label": "西幻史诗", "icon": "🐉", "prompt": "--- 创作风格与视角 ---\n创作性向：男性向\n叙事视角：第三人称\n小说文风：西幻史诗\n--- 世界观设定 ---\n西方魔幻世界，精灵女王统治的王国面临兽人入侵\n--- 主角信息 ---\n姓名：艾拉 性别：女 年龄：1000 身材外貌：金发碧眼，身材高挑\n详细人设：威严的精灵女王，内心渴望被征服\n外挂/金手指：精灵王族的魔力\n--- 创作需求 ---\n创作场景：王宫\n创作事件：被俘虏\n特殊需求/XP：调教"}, {"label": "现代都市", "icon": "🏙️", "prompt": "--- 创作风格与视角 ---\n创作性向：男性向\n叙事视角：第一人称\n小说文风：现代色情, 骚浪淫贱\n--- 世界观设定 ---\n现代都市，主角穿越到男女比例1:10的世界\n--- 主角信息 ---\n姓名：主角 性别：男 年龄：24 身材外貌：普通\n详细人设：刚毕业的大学生\n外挂/金手指：性能力强化\n--- 创作需求 ---\n创作场景：街头巷弄\n创作事件：被女性混混盯上\n特殊需求/XP：无"}, {"label": "缥缈修仙", "icon": "☯️", "prompt": "--- 创作风格与视角 ---\n创作性向：女性向\n叙事视角：第三人称\n小说文风：缥缈修仙, 古代言情\n--- 世界观设定 ---\n仙侠世界，女主是凡间少女被修真宗门选中\n--- 主角信息 ---\n姓名：苏婉 性别：女 年龄：18 身材外貌：清丽出尘\n详细人设：聪慧坚韧的少女\n外挂/金手指：上古灵根\n--- 创作需求 ---\n创作场景：宗门\n创作事件：拜师\n特殊需求/XP：禁忌之恋"}, {"label": "自定义", "icon": "✍️", "prompt": "我想自定义一个世界观让你创作，请先帮我完善设定"}]}];
+
+/* ==================== 状态与存储 ==================== */
+const LS_CHATS='wxm_chats_v1', LS_CUR='wxm_cur_v1', LS_SET='wxm_set_v1';
+const state={
+  characters:CHARACTERS, character:null, charId:null,
+  conversations:(()=>{try{return JSON.parse(localStorage.getItem(LS_CHATS))||{}}catch{return{}}})(),
+  currentId:null, streaming:false, abortCtrl:null,
+  settings:Object.assign({
+    provider:'deepseek', model:'deepseek-chat', temperature:1.0, maxTokens:8192,
+    dsKey:'', orKey:'', cuUrl:'', cuKey:''
+  }, (()=>{try{return JSON.parse(localStorage.getItem(LS_SET))||{}}catch{return{}}})())
+};
+const $=s=>document.querySelector(s);
+function saveChats(){localStorage.setItem(LS_CHATS,JSON.stringify(state.conversations));}
+function saveSet(){localStorage.setItem(LS_SET,JSON.stringify(state.settings));}
+function saveCur(){localStorage.setItem(LS_CUR,JSON.stringify({c:state.charId,t:state.currentId}));}
+function loadCur(){try{const j=JSON.parse(localStorage.getItem(LS_CUR));if(j&&j.c)return j;}catch{}return null;}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function toast(m){const t=document.createElement('div');t.className='error-toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),4000);}
+
+/* ==================== 初始化 ==================== */
+function init(){
+  bind();
+  const cur=loadCur();
+  state.charId=(cur&&CHARACTERS.find(c=>c.id===cur.c))?cur.c:CHARACTERS[0].id;
+  // 迁移旧会话
+  let mig=false;
+  for(const c of Object.values(state.conversations)){if(!c.characterId){c.characterId=state.charId;mig=true;}}
+  if(mig)saveChats();
+  loadChar(state.charId);
+  const target=(cur&&state.conversations[cur.t]&&state.conversations[cur.t].characterId===state.charId)?state.conversations[cur.t]:null;
+  if(target){state.currentId=target.id;saveCur();renderConvList();renderMessages(target);}
+  else newConversation();
+}
+function loadChar(id){
+  state.character=CHARACTERS.find(c=>c.id===id)||CHARACTERS[0];
+  state.charId=state.character.id;
+  const c=state.character;
+  $('#brand-avatar').src=c.avatar||'';$('#brand-name').textContent=c.name;
+  $('#brand-tagline').textContent=c.tagline||'';
+  $('#header-name').textContent=c.name;$('#header-sub').textContent=c.tagline||'';
+  document.title=c.name;
+  $('#header-status').innerHTML='<span class="badge-model"></span>';
+  $('#header-status').querySelector('.badge-model').textContent=state.settings.model;
+  renderCharSwitcher();
+}
+function renderCharSwitcher(){
+  const box=$('#char-list');box.innerHTML='';
+  for(const c of state.characters){
+    const b=document.createElement('button');
+    b.className='char-btn'+(c.id===state.charId?' active':'');
+    b.innerHTML='<img src="'+(c.avatar||'')+'" alt="" loading="lazy"><span class="char-label"></span>';
+    b.querySelector('.char-label').textContent=c.name;
+    b.onclick=()=>switchChar(c.id);
+    box.appendChild(b);
+  }
+}
+function switchChar(id){
+  if(id===state.charId)return;
+  if(state.streaming)stopGen();
+  state.charId=id;loadChar(id);
+  const convs=Object.values(state.conversations).filter(c=>c.characterId===id).sort((a,b)=>b.updatedAt-a.updatedAt);
+  if(convs.length){state.currentId=convs[0].id;saveCur();renderConvList();renderMessages(convs[0]);}
+  else newConversation();
+  closeSidebar();
+}
+
+/* ==================== 会话 ==================== */
+function getCurrent(){return state.conversations[state.currentId]||null;}
+function newConversation(){
+  if(state.streaming)stopGen();
+  const id=uid();
+  const g=state.character.greeting||'';
+  state.conversations[id]={id,characterId:state.charId,title:'新对话',
+    messages:g?[{role:'assistant',content:g,ts:Date.now()}]:[],createdAt:Date.now(),updatedAt:Date.now()};
+  state.currentId=id;saveCur();saveChats();renderConvList();renderMessages(state.conversations[id]);
+}
+function delConv(id){
+  delete state.conversations[id];saveChats();
+  if(state.currentId===id){
+    const convs=Object.values(state.conversations).filter(c=>c.characterId===state.charId).sort((a,b)=>b.updatedAt-a.updatedAt);
+    if(convs.length){state.currentId=convs[0].id;saveCur();}
+    else{state.currentId=null;newConversation();return;}
+  }
+  renderConvList();renderMessages(state.conversations[state.currentId]);
+}
+function switchConv(id){if(state.streaming)stopGen();state.currentId=id;saveCur();renderConvList();renderMessages(state.conversations[id]);closeSidebar();}
+function updTitle(id){
+  const c=state.conversations[id];if(!c)return;
+  const f=c.messages.find(m=>m.role==='user');
+  if(f){const t=String(f.content).replace(/\s+/g,' ').trim();c.title=t.length>16?t.slice(0,16)+'…':t;}
+  saveChats();
+}
+function renderConvList(){
+  const list=$('#conv-list');list.innerHTML='';
+  const convs=Object.values(state.conversations).filter(c=>c.characterId===state.charId).sort((a,b)=>b.updatedAt-a.updatedAt);
+  if(!convs.length){list.innerHTML='<div class="conv-empty">还没有对话<br/>点「新建对话」开始</div>';return;}
+  for(const c of convs){
+    const it=document.createElement('div');
+    it.className='conv-item'+(c.id===state.currentId?' active':'');
+    it.innerHTML='<span class="conv-title"></span><button class="conv-del">✕</button>';
+    it.querySelector('.conv-title').textContent=c.title;
+    it.onclick=e=>{if(e.target.closest('.conv-del'))return;switchConv(c.id);};
+    it.querySelector('.conv-del').onclick=e=>{e.stopPropagation();delConv(c.id);};
+    list.appendChild(it);
+  }
+}
+
+/* ==================== 渲染 ==================== */
+function renderMessages(conv){
+  const box=$('#messages');box.innerHTML='';if(!conv)return;
+  let firstAi=null;
+  for(const m of conv.messages){const el=appendMsg(m.role,m.content);if(m.role==='assistant')attachActions(el.bubble);if(!firstAi&&m.role==='assistant')firstAi=el.bubble;}
+  if(conv.messages.length===1&&firstAi&&state.character.suggested&&state.character.suggested.length){
+    const chips=document.createElement('div');chips.className='world-chips';
+    for(const w of state.character.suggested){
+      const b=document.createElement('button');b.className='world-chip';b.dataset.prompt=w.prompt||w.label;
+      b.textContent=(w.icon||'')+' '+w.label;
+      chips.appendChild(b);
+    }
+    firstAi.appendChild(chips);
+  }
+  scrollBottom();
+}
+function appendMsg(role,content){
+  const box=$('#messages');
+  const wrap=document.createElement('div');wrap.className='msg '+(role==='user'?'user':'ai');
+  const av=document.createElement('div');av.className='msg-avatar';
+  if(role==='user')av.textContent='你';else{const i=document.createElement('img');i.src=state.character.avatar||'';i.alt='';av.appendChild(i);}
+  const body=document.createElement('div');body.className='msg-body';
+  const nm=document.createElement('div');nm.className='msg-name';nm.textContent=role==='user'?'你':state.character.name;
+  const bub=document.createElement('div');bub.className='msg-bubble';
+  if(content)bub.innerHTML=renderContent(content);
+  body.appendChild(nm);body.appendChild(bub);wrap.appendChild(av);wrap.appendChild(body);box.appendChild(wrap);
+  scrollBottom();
+  return {bubble:bub};
+}
+function scrollBottom(){const b=$('#messages');requestAnimationFrame(()=>{b.scrollTop=b.scrollHeight;});}
+
+/* ---- Markdown ---- */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function inline(s){
+  s=esc(s);
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  return s;
+}
+function md(text){
+  const blocks=[];
+  text=text.replace(/```(?:(\w+))?\n([\s\S]*?)```/g,(m,lang,code)=>{blocks.push({lang:(lang||'').toLowerCase(),code});return '@@B'+(blocks.length-1)+'@@';});
+  const lines=text.split('\n');let html='',list=null;
+  for(const raw of lines){
+    const line=raw.trimEnd();
+    const bm=line.match(/^@@B(\d+)@@$/);
+    if(bm){const b=blocks[+bm[1]];html+= b.lang==='stat'?'<div class="stat-block">'+esc(b.code)+'</div>':'<pre><code>'+esc(b.code)+'</code></pre>';list=null;continue;}
+    if(!line.trim()){list=null;continue;}
+    if(/^#{1,4}\s/.test(line)){const lv=line.match(/^(#{1,4})\s/)[1].length;html+='<h'+lv+' style="font-size:'+(lv===1?20:lv===2?17:15)+'px;margin:10px 0 6px">'+inline(line.replace(/^#{1,4}\s/,''))+'</h'+lv+'>';list=null;continue;}
+    if(/^[-*]\s/.test(line)){if(list!=='ul'){html+='<ul style="padding-left:20px;margin:6px 0">';list='ul';}html+='<li>'+inline(line.replace(/^[-*]\s/,''))+'</li>';continue;}
+    if(list){html+='</'+list+'>';list=null;}
+    html+='<div>'+inline(line)+'</div>';
+  }
+  if(list)html+='</'+list+'>';
+  return html;
+}
+/* ---- 结构化 / 文本面板 ---- */
+function isStructured(t){return /<div class="style_default"|<details|<top-info-bar|<world_setting|<guide|<info区/.test(t);}
+function convertTables(html){
+  const lines=html.split('\n'),out=[];let i=0;
+  while(i<lines.length){
+    const line=lines[i];
+    if(/^\s*\|.*\|\s*$/.test(line)&&line.split('|').length>=3){
+      const rows=[];
+      while(i<lines.length&&/^\s*\|.*\|\s*$/.test(lines[i])){rows.push(lines[i]);i++;}
+      const data=rows.map(r=>r.split('|').map(c=>c.trim()).filter((c,idx,a)=>idx>0&&idx<a.length-1)).filter(cells=>!cells.every(c=>/^:?-+:?$/.test(c)));
+      if(data.length){out.push('<table>');data.forEach((row,ri)=>{const tag=ri===0?'th':'td';out.push('<tr>'+row.map(c=>'<'+tag+'>'+c+'</'+tag+'>').join('')+'</tr>');});out.push('</table>');}
+      continue;
+    }
+    out.push(line);i++;
+  }
+  return out.join('\n');
+}
+function enrichActions(html){
+  return html.replace(/(<details>[\s\S]*?<summary>\s*行动推荐\s*<\/summary>)([\s\S]*?)(<\/details>)/g,(m,head,body,close)=>{
+    const en=body.replace(/(^|\n)\s*(\d+)\s*[.、]\s*([^\n]*)/g,(mm,nl,num,txt)=>nl+'<button class="action-item" data-num="'+num+'">'+num+'. '+txt.trim()+'</button>');
+    return head+en+close;
+  });
+}
+function enrichChoices(html){
+  return html.replace(/```choose\s*\n([\s\S]*?)```/g,(m,body)=>{
+    const items=body.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+      const m2=l.match(/^[-*•]?\s*([A-Ea-e])\s*[:：]\s*(.*)$/);
+      if(m2){const L=m2[1].toUpperCase();return '<button class="action-item" data-num="'+L+'">'+L+'. '+inline(m2[2])+'</button>';}
+      return '<div>'+inline(l)+'</div>';
+    });
+    return '<div class="choose-options">'+items.join('')+'</div>';
+  });
+}
+const PANEL_NAMES='主角信息|NPC信息|当前目标|行动推荐|过往记忆|信息区|星记忆回廊|选项';
+function textToPanels(text){
+  const re=new RegExp('^\\s*(?:#{1,4}\\s*)?\\**\\s*('+PANEL_NAMES+')\\s*\\**\\s*(?:（折叠）|\\(折叠\\))?\\s*[:：]?\\s*$');
+  const lines=text.split('\n'),nar=[],secs=[];let cur=null;
+  for(const raw of lines){
+    const line=raw.replace(/\r$/,'');
+    const m=line.match(re);
+    if(m){cur={title:m[1],content:[]};secs.push(cur);}
+    else if(cur)cur.content.push(line);
+    else nar.push(line);
+  }
+  if(!secs.length)return null;
+  let html=md(nar.join('\n'));
+  for(const s of secs){
+    const body=(s.title==='行动推荐'||s.title==='选项')?renderOpts(s.content):renderPanel(s.content);
+    html+='<details class="wx-panel"><summary>'+s.title+'</summary><div>'+body+'</div></details>';
+  }
+  return html;
+}
+function renderOpts(lines){
+  let html='',n=0;
+  for(const raw of lines){
+    const t=raw.trim();if(!t)continue;n++;
+    const m=t.match(/^(\d+)\s*[.、]\s*(.*)$/);
+    const lm=t.match(/^[-*•]?\s*([A-Ea-e])\s*[:：]\s*(.*)$/);
+    if(lm){const L=lm[1].toUpperCase();html+='<button class="action-item" data-num="'+L+'">'+L+'. '+inline(lm[2])+'</button>';}
+    else if(m){html+='<button class="action-item" data-num="'+m[1]+'">'+m[1]+'. '+inline(m[2])+'</button>';}
+    else html+='<button class="action-item" data-num="'+n+'">'+n+'. '+inline(t)+'</button>';
+  }
+  return html;
+}
+function renderPanel(lines){
+  let html='',tb=[];
+  const flush=()=>{
+    if(!tb.length)return;
+    if(tb.length===1){html+='<div>'+inline(tb[0].join(' · '))+'</div>';tb=[];return;}
+    html+='<table>';
+    tb.forEach((row,i)=>{const tag=i===0?'th':'td';html+='<tr>'+row.map(c=>'<'+tag+'>'+inline(c)+'</'+tag+'>').join('')+'</tr>';});
+    html+='</table>';tb=[];
+  };
+  for(const raw of lines){
+    const t=raw.trim();
+    if(t.includes('\t')&&t.split('\t').filter(Boolean).length>=2){tb.push(t.split('\t').map(c=>c.trim()));continue;}
+    flush();
+    if(!t){html+='<div style="height:3px"></div>';continue;}
+    if(/^(长期记忆|短期记忆|核心记忆|⚜️)/.test(t)){html+='<div class="pnl-sub">'+inline(t)+'</div>';continue;}
+    if(/^[-*•]\s/.test(t)){html+='<div style="padding-left:2px">• '+inline(t.replace(/^[-*•]\s/,''))+'</div>';continue;}
+    if(/^#{1,4}\s/.test(t)){html+='<div class="pnl-sub">'+inline(t.replace(/^#{1,4}\s/,''))+'</div>';continue;}
+    html+='<div>'+inline(t)+'</div>';
+  }
+  flush();
+  return html;
+}
+function sanitize(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const allowed=new Set(['DIV','SPAN','DETAILS','SUMMARY','COT','GUIDE','POSITION','TABLE','THEAD','TBODY','TR','TD','TH','STRONG','EM','B','I','UL','OL','LI','P','BR','H1','H2','H3','H4','A','CODE','PRE','HR','BUTTON']);
+  const attr=new Set(['class','data-num']);
+  const walk=n=>{[...n.childNodes].forEach(c=>{
+    if(c.nodeType===1){
+      const t=c.tagName;
+      if(['SCRIPT','STYLE','IFRAME','OBJECT','LINK','META'].includes(t)){c.remove();return;}
+      if(!allowed.has(t)){const f=document.createDocumentFragment();while(c.firstChild)f.appendChild(c.firstChild);c.parentNode.replaceChild(f,c);[...f.childNodes].forEach(walk);return;}
+      [...c.attributes].forEach(a=>{const n2=a.name.toLowerCase();if(!attr.has(n2)||n2.startsWith('on'))c.removeAttribute(a.name);});
+      walk(c);
+    } else if(c.nodeType===8){c.remove();}
+  });};
+  walk(doc.body);
+  const tn=[];const w=document.createTreeWalker(doc.body,NodeFilter.SHOW_TEXT);
+  while(w.nextNode()){const n=w.currentNode;if(n.nodeValue&&/\*\*[^*]+\*\*/.test(n.nodeValue))tn.push(n);}
+  tn.forEach(n=>{
+    const parts=n.nodeValue.split(/(\*\*[^*]+\*\*)/g);
+    const f=document.createDocumentFragment();
+    parts.forEach(p=>{if(/^\*\*[^*]+\*\*$/.test(p)){const b=document.createElement('strong');b.textContent=p.slice(2,-2);f.appendChild(b);}else if(p)f.appendChild(document.createTextNode(p));});
+    n.parentNode.replaceChild(f,n);
+  });
+  return doc.body.innerHTML;
+}
+function splitThink(text){
+  const o=text.indexOf('<think>');if(o===-1)return{clean:text,think:''};
+  const c=text.indexOf('</think>',o);
+  if(c===-1)return{clean:text.slice(0,o),think:text.slice(o+7)};
+  const clean=text.slice(0,c+8),think=text.slice(o+7,c);
+  const rest=splitThink(text.slice(0,o)+text.slice(c+8));
+  return {clean:rest.clean,think:(think+'\n'+rest.think).trim()};
+}
+function renderContent(content){
+  const t=String(content);
+  if(isStructured(t)){try{return sanitize(enrichActions(enrichChoices(convertTables(t))));}catch(e){return md(t);}}
+  const p=textToPanels(t);if(p)return p;
+  return md(t);
+}
+function attachActions(bubble){
+  if(!bubble)return;
+  bubble.querySelectorAll('.action-item').forEach(b=>{b.onclick=()=>{const n=b.dataset.num;if(n){$('#input').value=n;send(n);}};});
+}
+
+/* ==================== API 调用（直连） ==================== */
+function providerCfg(){
+  const s=state.settings;
+  if(s.provider==='deepseek')return{url:'https://api.deepseek.com/chat/completions',key:s.dsKey,model:s.model};
+  if(s.provider==='openrouter')return{url:'https://openrouter.ai/api/v1/chat/completions',key:s.orKey,model:s.model};
+  if(s.provider==='custom')return{url:s.cuUrl,key:s.cuKey,model:s.model};
+  return{url:'',key:'',model:s.model};
+}
+function normModel(m){return m?String(m).replace(/[‐‑‒–—−－]/g,'-').trim():m;}
+function buildWorldBook(text){
+  const wb=state.character.worldBook||[];
+  const hits=wb.filter(e=>e.enabled&&(e.keys||[]).some(k=>text.includes(k)));
+  if(!hits.length)return '';
+  return '\n\n—————— 世界书注入 ——————\n'+hits.map(h=>'【'+h.id+'】\n'+h.content).join('\n\n')+'\n';
+}
+function buildMessages(history){
+  const c=state.character,msgs=[];
+  let sys=c.persona||'';
+  if(c.styleGuide)sys+='\n\n# 文风要求\n'+c.styleGuide;
+  msgs.push({role:'system',content:sys});
+  for(const m of history){if(!m||!m.content||m.role==='system')continue;msgs.push({role:m.role==='assistant'?'assistant':'user',content:String(m.content)});}
+  const li=msgs.map(m=>m.role).lastIndexOf('user');
+  if(li>=0){
+    let lc=msgs[li].content;
+    const wb=buildWorldBook(lc);if(wb)lc+=wb;
+    if(c.reminder)lc+='\n\n[系统强制要求] '+c.reminder;
+    msgs[li]={role:'user',content:lc};
+  }
+  return msgs;
+}
+function history(){const c=getCurrent();return c?c.messages.map(m=>({role:m.role,content:m.content})):[];}
+
+async function send(text){
+  const conv=getCurrent();
+  if(!conv||!text.trim()||state.streaming)return;
+  const cfg=providerCfg();
+  if(!cfg.url){toast('请先在设置里配置 API');openSettings();return;}
+  conv.messages.push({role:'user',content:text.trim(),ts:Date.now()});
+  conv.updatedAt=Date.now();updTitle(conv.id);saveChats();renderConvList();renderMessages(conv);
+  $('#input').value='';autoResize();
+
+  const {bubble}=appendMsg('assistant','');
+  bubble.innerHTML='<span class="typing-dot">正在生成…</span>';
+  state.streaming=true;state.abortCtrl=new AbortController();
+  $('#btn-send').disabled=true;$('#btn-stop').hidden=false;
+
+  let acc='',thinking='',thinkEl=null;
+  try{
+    const body={messages:buildMessages(history()),stream:true,temperature:state.settings.temperature,max_tokens:state.settings.maxTokens};
+    const mm=normModel(cfg.model);if(mm)body.model=mm;
+    const headers={'Content-Type':'application/json'};
+    if(cfg.key)headers['Authorization']='Bearer '+cfg.key;
+    const res=await fetch(cfg.url,{method:'POST',headers,body:JSON.stringify(body),signal:state.abortCtrl.signal});
+    if(!res.ok){let t='';try{t=await res.text();}catch{}throw new Error('API 错误 '+res.status+'：'+t.slice(0,200));}
+    const reader=res.body.getReader(),dec=new TextDecoder();let buf='';
+    const hd=(data)=>{
+      if(!data||data==='[DONE]')return;
+      let j;try{j=JSON.parse(data);}catch{return;}
+      const d=j.choices&&j.choices[0]&&j.choices[0].delta;if(!d)return;
+      if(d.reasoning_content){thinking+=d.reasoning_content;
+        if(!thinkEl){thinkEl=document.createElement('div');thinkEl.style.cssText='font-size:12px;color:var(--text-faint);font-style:italic;margin-bottom:6px;border-left:2px solid var(--border);padding-left:8px;white-space:pre-wrap;';bubble.insertBefore(thinkEl,bubble.firstChild);}
+        thinkEl.textContent='🧠 '+thinking;}
+      if(d.content){acc+=d.content;const s=splitThink(acc);
+        if(s.think){if(!thinkEl){thinkEl=document.createElement('div');thinkEl.style.cssText='font-size:12px;color:var(--text-faint);font-style:italic;margin-bottom:6px;border-left:2px solid var(--border);padding-left:8px;white-space:pre-wrap;';bubble.insertBefore(thinkEl,bubble.firstChild);}thinkEl.textContent='🧠 '+s.think;}
+        bubble.innerHTML=renderContent(s.clean)+'<span class="cursor"></span>';}
+    };
+    while(true){
+      const {done,value}=await reader.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      let nl;
+      while((nl=buf.indexOf('\n'))>=0){const line=buf.slice(0,nl).trim();buf=buf.slice(nl+1);if(line.startsWith('data:'))hd(line.slice(5).trim());}
+    }
+    if(buf.trim().startsWith('data:'))hd(buf.trim().slice(5).trim());
+  }catch(e){
+    if(e.name==='AbortError'){if(acc)bubble.innerHTML=renderContent(splitThink(acc).clean);else bubble.innerHTML='<span style="color:var(--text-faint)">（已停止）</span>';}
+    else{bubble.innerHTML='<span style="color:var(--danger)">'+esc(e.message||'出错')+'</span>';toast(e.message||'出错');}
+  }finally{
+    if(acc){
+      const fin=splitThink(acc).clean.trim();
+      if(fin){bubble.innerHTML=renderContent(fin);attachActions(bubble);conv.messages.push({role:'assistant',content:fin,ts:Date.now()});conv.updatedAt=Date.now();updTitle(conv.id);saveChats();renderConvList();}
+      else bubble.innerHTML='<span style="color:var(--text-faint)">（仅思考，未出正文，请重试）</span>';
+    }
+    state.streaming=false;state.abortCtrl=null;$('#btn-send').disabled=false;$('#btn-stop').hidden=true;
+    const c=bubble.querySelector('.cursor');if(c)c.remove();
+  }
+}
+function stopGen(){if(state.abortCtrl)state.abortCtrl.abort();}
+
+/* ==================== 设置 ==================== */
+function openSettings(){
+  const s=state.settings;
+  $('#set-provider').value=s.provider;$('#set-model').value=s.model;
+  $('#set-ds-key').value=s.dsKey;$('#set-or-key').value=s.orKey;
+  $('#set-cu-url').value=s.cuUrl;$('#set-cu-key').value=s.cuKey;
+  $('#set-temp').value=s.temperature;$('#set-temp-val').textContent=s.temperature;
+  $('#set-maxtokens').value=s.maxTokens;$('#set-maxtokens-val').textContent=s.maxTokens;
+  rowVis();
+  $('#settings-modal').hidden=false;
+}
+function rowVis(){
+  const p=state.settings.provider;
+  $('#row-ds').style.display=p==='deepseek'?'':'none';
+  $('#row-or').style.display=p==='openrouter'?'':'none';
+  $('#row-cu').style.display=p==='custom'?'':'none';
+  $('#row-cu-key').style.display=p==='custom'?'':'none';
+}
+function saveSettingsFromUI(){
+  const s=state.settings;
+  s.provider=$('#set-provider').value;
+  s.model=$('#set-model').value.trim();
+  s.dsKey=$('#set-ds-key').value.trim();
+  s.orKey=$('#set-or-key').value.trim();
+  s.cuUrl=$('#set-cu-url').value.trim();
+  s.cuKey=$('#set-cu-key').value.trim();
+  s.temperature=parseFloat($('#set-temp').value);
+  s.maxTokens=parseInt($('#set-maxtokens').value,10);
+  saveSet();
+  $('#header-status').innerHTML='<span class="badge-model"></span>';
+  $('#header-status').querySelector('.badge-model').textContent=s.model;
+  toast('已保存');
+}
+
+/* ==================== 事件 ==================== */
+function autoResize(){const t=$('#input');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,160)+'px';}
+function closeSidebar(){$('#sidebar').classList.remove('open');$('#sidebar-mask').classList.remove('show');}
+function bind(){
+  $('#btn-new-chat').onclick=newConversation;
+  $('#btn-send').onclick=()=>send($('#input').value);
+  $('#input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send($('#input').value);}});
+  $('#input').addEventListener('input',autoResize);
+  $('#btn-stop').onclick=stopGen;
+  $('#btn-settings').onclick=openSettings;
+  $('#btn-settings-close').onclick=()=>{$('#settings-modal').hidden=true;};
+  $('#settings-modal .modal-backdrop').onclick=()=>{$('#settings-modal').hidden=true;};
+  $('#btn-config-save').onclick=saveSettingsFromUI;
+  $('#set-provider').onchange=()=>{state.settings.provider=$('#set-provider').value;rowVis();};
+  $('#set-temp').oninput=e=>{$('#set-temp-val').textContent=e.target.value;state.settings.temperature=parseFloat(e.target.value);saveSet();};
+  $('#set-maxtokens').oninput=e=>{$('#set-maxtokens-val').textContent=e.target.value;state.settings.maxTokens=parseInt(e.target.value,10);saveSet();};
+  $('#set-model').onchange=e=>{state.settings.model=e.target.value.trim();saveSet();};
+  $('#btn-menu').onclick=()=>{$('#sidebar').classList.add('open');$('#sidebar-mask').classList.add('show');};
+  $('#sidebar-mask').onclick=closeSidebar;
+  $('#messages').addEventListener('click',e=>{
+    const chip=e.target.closest('.world-chip');
+    if(chip){const p=chip.dataset.prompt;if(p){$('#input').value=p;send(p);}}
+  });
+}
+init();
+</script>
+</body>
+</html>
